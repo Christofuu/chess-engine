@@ -1,0 +1,3 @@
+/Users/chrisdove/CLionProjects/chess_engine/cmake-build-debug/CMakeFiles/chess_engine.dir
+/Users/chrisdove/CLionProjects/chess_engine/cmake-build-debug/CMakeFiles/edit_cache.dir
+/Users/chrisdove/CLionProjects/chess_engine/cmake-build-debug/CMakeFiles/rebuild_cache.dir
