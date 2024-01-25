@@ -139,6 +139,18 @@ U64 knightAttacks[64];
 // king attack table
 U64 kingAttacks[64];
 
+// bishop attack masks
+U64 bishopMasks[64];
+
+// bishop attacks table[square][occupancies]
+U64 bishopAttacks[64][512];
+
+// rook attack masks
+U64 rookMasks[64];
+
+// rook attacks table[square][occupancies]
+U64 rookAttacks[64][4096];
+
 // relevant occupancy bitcount for every square on board
 const int bishopRelevantBits[64] = {
         6, 5, 5, 5, 5, 5, 5, 6,
@@ -509,6 +521,8 @@ U64 generateRookAttacks(int square, U64 block) {
     return attacks;
 }
 
+
+// initialize leaper pieces (pawns and knights)
 void init_leaper_attacks() {
     for (int square = 0; square < 64; square++) {
         pawnAttacks[white][square] = maskPawnAttacks(white, square);
@@ -537,9 +551,62 @@ U64 setOccupancy(int index, int bitsInMask, U64 attackMask) {
             occupancy |= (1ULL << square);
         }
     }
-
     // return occupancy map
     return occupancy;
+}
+
+// initialize slider pieces attack tables (bishops and rooks)
+void init_slider_attacks(int bishop) {
+    // loop over 64 board squares
+    for (int square = 0; square < 64; square++) {
+        // init bishop and rook masks
+        bishopMasks[square] = maskBishopAttacks(square);
+        rookMasks[square]  = maskRookAttacks(square);
+
+        // init current mask
+        U64 attackMask = bishop ? bishopMasks[square] : rookMasks[square];
+
+        // init relevant occupancy bit count
+        int relevantBits = countBits(attackMask);
+
+        // init occupancy indices
+        int occupancyIndices = (1 << relevantBits);
+
+        // loop over occupancy indices
+
+        for (int i = 0; i < occupancyIndices; i++) {
+            U64 occupancy = setOccupancy(i, relevantBits, attackMask);
+            if (bishop) {
+                // init magic index
+                int magicIndex = (occupancy * bishopMagicNumbers[square]) >> (64 - bishopRelevantBits[square]);
+                bishopAttacks[square][magicIndex] = generateBishopAttacks(square, occupancy);
+            }
+            else {
+                // init magic index
+                int magicIndex = (occupancy * rookMagicNumbers[square]) >> (64 - rookRelevantBits[square]);
+                rookAttacks[square][magicIndex] = generateRookAttacks(square, occupancy);
+
+            }
+        }
+    }
+}
+
+// get bishop attacks
+static inline U64 getBishopAttacks(int square, U64 occupancy) {
+    // assuming current board occupancy
+    occupancy &= bishopMasks[square];
+    occupancy *= bishopMagicNumbers[square];
+    occupancy >>= 64 - bishopRelevantBits[square];
+
+    return bishopAttacks[square][occupancy];
+}
+// get rook attacks
+static inline U64 getRookAttacks(int square, U64 occupancy) {
+    occupancy &= rookMasks[square];
+    occupancy *= rookMagicNumbers[square];
+    occupancy >>= 64 - rookRelevantBits[square];
+
+    return rookAttacks[square][occupancy];
 }
 /*********************\
  ======================
@@ -671,6 +738,12 @@ void initMagicNumbers() {
     }
 }
 
+void init_all() {
+    init_leaper_attacks();
+    init_slider_attacks(bishop);
+    init_slider_attacks(rook);
+}
+
 /*********************\
  ======================
       Main Driver
@@ -679,13 +752,16 @@ void initMagicNumbers() {
 
 int main() {
     // init all variables
-    init_leaper_attacks();
+    init_all();
 
-    // mask piece attacks at given square
-    U64 attackMask = maskRookAttacks(a1);
+    U64 occupancy = 0ULL;
+    set_bit(occupancy, c5);
+    set_bit(occupancy, d3);
 
-    // init magic numbers routine
-    initMagicNumbers();
+    printBitboard(occupancy);
+
+    printBitboard(getBishopAttacks(d4, occupancy));
+    printBitboard(getRookAttacks(e5, occupancy));
 
     return 0;
 }
